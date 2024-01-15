@@ -1,0 +1,302 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Stock Search</title>
+    <style>
+        #maindiv {
+            text-align: center;
+            background-color: rgb(107, 107, 177);
+            justify-content: center;
+            height: auto;
+            width: 750px;
+            margin-top: 50;
+            margin-left: auto;
+            margin-right: auto;
+            padding-bottom: 50px;
+        }
+
+        #insidemain {
+            margin: auto;
+            position: relative;
+            top: 15px;
+            background-color: rgb(233, 233, 233);
+            width: 700px;
+            height: 200px;
+        }
+
+        #title {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 25;
+            font-weight: bold;
+            position: relative;
+            top: 25px;
+        }
+
+        #enter {
+            display: flex;
+            position: relative;
+            top: 50px;
+            justify-content: center;
+        }
+
+        #buttonbox {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            top: 70px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        #tabbox {
+            position: relative;
+            margin-top: 30px;
+            width: 700px;
+            display: flex;
+            justify-content: left;
+            margin-left: auto;
+            margin-right: auto;
+            background-color: rgb(250, 250, 250);
+        }
+
+        .tab {
+            left: -275px;
+            width: 150px;
+            padding: 15px;
+            cursor: pointer;
+        }
+
+        .tabselect {
+            background-color: rgb(210, 210, 210);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .grid {
+            top: 20px;
+            grid-template-columns: 250px 450px;
+            grid-template-rows: auto;
+            position: relative;
+            border-top-style: solid;
+            border-left-style: solid;
+            border-width: 1px;
+            outline-offset: 2px;
+            width: 700px;
+            margin: auto;
+        }
+
+        .gridshown {
+            display: grid;
+        }
+
+        .gridcontent {
+            font-family: Arial, Helvetica, sans-serif;
+            border-bottom-style: solid;
+            border-right-style: solid;
+            border-width: 1px;
+            text-align: center;
+            padding: 5px;
+            background-color: rgb(250, 250, 250);
+        }
+
+        .desc {
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 5;
+            display: -webkit-box;
+            padding-bottom: 0px;
+        }
+
+        .gridtitle {
+            font-family: Arial, Helvetica, sans-serif;
+            border-bottom-style: solid;
+            border-right-style: solid;
+            border-width: 1px;
+            font-weight: bold;
+            padding: 5px;
+            background-color: rgb(210, 210, 210);
+        }
+
+        .button {
+            margin-right: 25px;
+            margin-left: 25px;
+            width: 80px;
+            padding: 5px;
+            background-color: rgb(255, 255, 255);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .cell {
+            margin: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="maindiv">
+        <form id="insidemain" name="insidemain" method="GET" action="/handle_get">
+            <div id="title">Stock Search</div>
+            <div id="enter">
+                <div id="message" class="cell">Enter Stock Ticker Symbol</div>
+                <div class="cell">
+                    <input type="text" required id="inputBox" name="inputBox"></input>
+                </div>
+            </div>
+            <div id="buttonbox">
+                <button type="submit" id="submit" class="button">Search</button>
+                <button type="reset" id="clear" class="button">Clear</button>
+            </div>
+        </form>
+        <div id="tabbox">
+            <div id="tab1" class="tab">Company Outlook</div>
+            <div id="tab2" class="tab">Stock Summary</div>
+        </div>
+        <div id="grid1"></div>
+        <div id="grid2"></div>
+        <div id="error" class="hidden">Error: No record has been found, please enter a valid symbol.</div>
+    </div>
+</body>
+
+<script>
+    const word_data1 = {{ word_data1 | tojson }};
+    const word_data2 = {{ word_data2 | tojson }};
+    const input_data = {{ input_data | tojson }};
+    const jsoninfo = ["name", "ticker", "exchangeCode", "startDate", "description"]
+    const jsoninfo2 = ["ticker", "timestamp", "prevClose", "open", "high", "low", "last", "NA", "NA", "volume"]
+    const titlearray = ["Company Name", "Stock Ticker Symbol", "Stock Exchange Code", "Company Start Date", "Description"]
+    const titlearray2 = ["Stock Ticker Symbol", "Trading Day", "Previous Closing Price", "Opening Price", "High Price", "Low Price", "Last Price", "Change", "Change Percent", "Number of Shares Traded"]
+
+    const tab1 = document.getElementById("tab1")
+    const tab2 = document.getElementById("tab2")
+    const grid1 = document.getElementById("grid1");
+    const grid2 = document.getElementById("grid2");
+    const clear = document.getElementById("clear");
+    const errormsg = document.getElementById("error");
+    clear.addEventListener('click', clear_f)
+
+    if (word_data1 == "blank") {
+        tab1.classList.add("hidden");
+        tab2.classList.add("hidden");
+    } else if(word_data1["detail"] == "Not found.") {
+        error();
+        inputBox.value = input_data;
+    } else if(word_data1["detail"] == "Error: You have run over your hourly request allocation. Please upgrade at https://api.tiingo.com/pricing to have your limits increased.") {
+        error2();
+        inputBox.value = input_data;
+    } else {
+        errormsg.classList.add("hidden");
+        grid_init();
+        inputBox.value = input_data;
+        tab1_f();
+        tab1.addEventListener('click', tab1_f)
+        tab2.addEventListener('click', tab2_f)
+    }
+
+    function grid_init() {
+        document.getElementById("maindiv").appendChild(grid1);
+        grid1.classList.add("grid")
+        grid1.classList.add("hidden")
+        for (let i = 0; i < 5; i++) {
+            var title = this.document.createElement('div');
+            title.textContent = titlearray[i]
+            title.classList.add("gridtitle")
+            grid1.appendChild(title);
+
+            var content = this.document.createElement('div');
+            content.textContent = word_data1[jsoninfo[i]]
+            content.classList.add("gridcontent")
+            grid1.appendChild(content);
+            if(i==4) {
+                content.classList.add("desc");
+            }
+        }
+
+        document.getElementById("maindiv").appendChild(grid2);
+        grid2.classList.add("grid")
+        grid2.classList.add("hidden")
+        var num;
+        for (let i = 0; i < 10; i++) {
+            var title = this.document.createElement('div');
+            title.textContent = titlearray2[i]
+            title.classList.add("gridtitle")
+            grid2.appendChild(title);
+            var content = this.document.createElement('div');
+            if(i == 7) {
+                num = parseFloat(word_data2[0][jsoninfo2[6]]) - parseFloat(word_data2[0][jsoninfo2[2]]);
+                content.textContent = num.toFixed(2);
+                if(num < 0) {
+                    content.style.backgroundImage = "url({{url_for('static', filename='red.png')}})";
+                } else {
+                    content.style.backgroundImage = "url({{url_for('static', filename='green.png')}})";
+                }
+                
+            } else if(i == 8) {
+                num = num / parseFloat(word_data2[0][jsoninfo2[2]]) * 100;
+                content.textContent = num.toFixed(2) + "%";
+                if(num < 0) {
+                    content.style.backgroundImage = "url({{url_for('static', filename='red.png')}})";
+                } else {
+                    content.style.backgroundImage = "url({{url_for('static', filename='green.png')}})";
+                }
+            } else if(i == 1) {
+                datetime = word_data2[0][jsoninfo2[i]]
+                date = datetime.slice(0,10)
+                date = date.replaceAll("-"," ")
+                content.textContent = date
+            } else {
+                content.textContent = word_data2[0][jsoninfo2[i]]
+            }
+            content.classList.add("gridcontent")
+            grid2.appendChild(content);
+        }
+
+    }
+
+    function tab1_f() {
+        grid1.classList.remove("hidden")
+        grid1.classList.add("gridshown")
+        grid2.classList.add("hidden")
+        grid2.classList.remove("gridshown")
+        tab1.classList.add("tabselect")
+        tab2.classList.remove("tabselect")
+    }
+
+    function tab2_f() {
+        grid2.classList.remove("hidden")
+        grid2.classList.add("gridshown")
+        grid1.classList.add("hidden")
+        grid1.classList.remove("gridshown")
+        tab2.classList.add("tabselect")
+        tab1.classList.remove("tabselect")
+    }
+
+    function clear_f() {
+        grid2.classList.add("hidden")
+        grid2.classList.remove("gridshown")
+        grid1.classList.add("hidden")
+        grid1.classList.remove("gridshown")
+        tab2.classList.remove("tabselect")
+        tab1.classList.remove("tabselect")
+        tab1.classList.add("hidden")
+        tab2.classList.add("hidden")
+        errormsg.classList.add("hidden");
+    }
+
+    function error() {
+        clear_f()
+        errormsg.classList.remove("hidden");
+        errormsg.innerHTML = "Error: No record has been found, please enter a valid symbol."
+    }
+
+    function error2() {
+        clear_f()
+        errormsg.classList.remove("hidden");
+        errormsg.innerHTML = "Error: You have run over your hourly request allocation. Please upgrade at https://api.tiingo.com/pricing to have your limits increased."
+    }
+
+</script>
+
+</html>
